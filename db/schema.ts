@@ -78,7 +78,7 @@ export const userVideos = pgTable(
 export const chats = pgTable(
   "chats",
   {
-    id: text("id").primaryKey(), // Unique chat ID (e.g., UUID or nanoid)
+    id: text("id").primaryKey(), // Unique chat ID (e.g. nanoid)
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }), // Deletes chat session if user account is deleted
