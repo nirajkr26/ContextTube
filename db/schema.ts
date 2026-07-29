@@ -14,6 +14,18 @@ const vector = customType<{ data: number[] }>({
   dataType() {
     return "vector(768)"
   },
+  toDriver(value: number[]): string {
+    return `[${value.join(",")}]`
+  },
+  fromDriver(value: unknown): number[] {
+    if (typeof value !== "string") {
+      return []
+    }
+    return value
+      .replace(/[\[\]]/g, "")
+      .split(",")
+      .map((v) => parseFloat(v))
+  },
 })
 
 // 2. Users Table
@@ -34,6 +46,7 @@ export const videos = pgTable("videos", {
   status: varchar("status", { enum: ["processing", "completed", "failed"] })
     .default("processing")
     .notNull(),
+  errorMessage: text("error_message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
