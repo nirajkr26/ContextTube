@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
       const isStale =
         videoStatus === "processing" &&
-        Date.now() - new Date(existingVideo[0].createdAt).getTime() > 30 * 60 * 1000 
+        Date.now() - new Date(existingVideo[0].createdAt).getTime() > 60 * 60 * 1000 
 
       if (videoStatus === "failed" || isStale) {
         // Reset status for retry, clear error message, and update createdAt to reset the stale timer
@@ -124,6 +124,8 @@ export async function POST(request: Request) {
         await workflowClient.trigger({
           url: workflowUrl,
           body: { videoId },
+          retries: 3,
+          retryDelay: "30",
         })
       } catch (triggerError) {
         console.error(
