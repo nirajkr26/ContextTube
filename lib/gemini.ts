@@ -9,16 +9,46 @@ export const ai = new GoogleGenAI({
 })
 
 export async function getEmbedding(text: string): Promise<number[]> {
-  const response = await ai.models.embedContent({
-    model: "gemini-embedding-2",
-    contents: text,
-  })
+  const retries = 3
+  const baseDelay = 1000
 
-  if (!response.embeddings?.[0]?.values) {
-    throw new Error("Failed to generate embedding from Gemini API")
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const response = await ai.models.embedContent({
+        model: "gemini-embedding-2",
+        contents: text,
+        config: { outputDimensionality: 768 },
+      })
+
+      if (!response.embeddings?.[0]?.values) {
+        throw new Error("Failed to generate embedding from Gemini API")
+      }
+
+      return response.embeddings[0].values
+    } catch (err: any) {
+      const isRateLimit =
+        err.status === 429 ||
+        err.message?.includes("429") ||
+        err.message?.includes("RESOURCE_EXHAUSTED") ||
+        err.message?.includes("quota")
+
+      if (isRateLimit && attempt < retries - 1) {
+        let waitMs = baseDelay * Math.pow(2, attempt)
+        const match = err.message?.match(/retry in ([\d.]+)s/i)
+        if (match && match[1]) {
+          const seconds = parseFloat(match[1])
+          if (seconds <= 10) {
+            waitMs = Math.ceil((seconds + 0.5) * 1000)
+          }
+        }
+        console.warn(`[getEmbedding] Rate limited. Retrying in ${waitMs}ms (attempt ${attempt + 1}/${retries})...`)
+        await new Promise((resolve) => setTimeout(resolve, waitMs))
+      } else {
+        throw err
+      }
+    }
   }
-
-  return response.embeddings[0].values
+  throw new Error("Failed to generate embedding after retries")
 }
 
 export async function getBatchEmbeddings(texts: string[]): Promise<number[][]> {
