@@ -1,11 +1,11 @@
 import { serve } from "@upstash/workflow/nextjs";
 import {
-  YoutubeTranscript,
   YoutubeTranscriptVideoUnavailableError,
   YoutubeTranscriptDisabledError,
   YoutubeTranscriptNotAvailableError,
   YoutubeTranscriptNotAvailableLanguageError,
 } from "youtube-transcript";
+import { fetchEnglishTranscript } from "@/lib/youtube";
 import { getBatchEmbeddings } from "@/lib/gemini";
 import { db } from "@/db";
 import { videos, videoChunks } from "@/db/schema";
@@ -23,7 +23,7 @@ export const { POST } = serve<WorkflowPayload>(
     // Step 1: Download raw transcript
     const rawTranscript = await context.run("download-transcript", async () => {
       try {
-        const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+        const transcript = await fetchEnglishTranscript(videoId);
 
         if (!transcript || transcript.length === 0) {
           throw new YoutubeTranscriptNotAvailableError(videoId);
