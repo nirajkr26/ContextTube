@@ -4,7 +4,7 @@ import {
 } from "youtube-transcript"
 import axios from "axios"
 
-const YOUTUBE_COOKIE = process.env.YOUTUBE_COOKIE || ""
+const SCRAPEOPS_API_KEY = process.env.SCRAPEOPS_API_KEY || ""
 
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36,gzip(gfe)"
@@ -29,30 +29,43 @@ interface CaptionTrack {
   isTranslatable?: boolean
 }
 
-// Utility to build standard request headers including optional YouTube authentication cookies
+// Utility to build standard request headers
 function getHeaders(userAgent: string, extraHeaders?: Record<string, string>) {
-  const headers: Record<string, string> = {
+  return {
     "User-Agent": userAgent,
     "Referer": "https://www.youtube.com",
     "Origin": "https://www.youtube.com",
     ...extraHeaders,
   }
-  if (YOUTUBE_COOKIE) {
-    headers["Cookie"] = YOUTUBE_COOKIE
-  }
-  return headers
 }
 
-// Helper to wrap axios GET requests with retry backoff for 429s
+// Helper to wrap axios GET requests with retry backoff for 429s and optional ScrapeOps proxy routing
 async function axiosGetWithRetry(
   url: string,
   config?: any,
   retries = 3,
   delay = 1000
 ): Promise<any> {
+  const finalUrl = SCRAPEOPS_API_KEY
+    ? `https://proxy.scrapeops.io/v1/?api_key=${encodeURIComponent(
+        SCRAPEOPS_API_KEY
+      )}&url=${encodeURIComponent(url)}`
+    : url
+
+  let finalConfig = { ...config }
+  if (SCRAPEOPS_API_KEY && finalConfig.headers) {
+    const {
+      "User-Agent": ua,
+      Referer,
+      Origin,
+      ...restHeaders
+    } = finalConfig.headers
+    finalConfig.headers = restHeaders
+  }
+
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      return await axios.get(url, config)
+      return await axios.get(finalUrl, finalConfig)
     } catch (error: any) {
       const isRateLimit =
         error?.response?.status === 429 || error?.status === 429
@@ -70,7 +83,7 @@ async function axiosGetWithRetry(
   throw new Error("Failed GET request after retries")
 }
 
-// Helper to wrap axios POST requests with retry backoff for 429s
+// Helper to wrap axios POST requests with retry backoff for 429s and optional ScrapeOps proxy routing
 async function axiosPostWithRetry(
   url: string,
   body?: any,
@@ -78,9 +91,26 @@ async function axiosPostWithRetry(
   retries = 3,
   delay = 1000
 ): Promise<any> {
+  const finalUrl = SCRAPEOPS_API_KEY
+    ? `https://proxy.scrapeops.io/v1/?api_key=${encodeURIComponent(
+        SCRAPEOPS_API_KEY
+      )}&url=${encodeURIComponent(url)}`
+    : url
+
+  let finalConfig = { ...config }
+  if (SCRAPEOPS_API_KEY && finalConfig.headers) {
+    const {
+      "User-Agent": ua,
+      Referer,
+      Origin,
+      ...restHeaders
+    } = finalConfig.headers
+    finalConfig.headers = restHeaders
+  }
+
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      return await axios.post(url, body, config)
+      return await axios.post(finalUrl, body, finalConfig)
     } catch (error: any) {
       const isRateLimit =
         error?.response?.status === 429 || error?.status === 429
@@ -248,6 +278,7 @@ function decodeEntities(text: string): string {
     .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
       String.fromCodePoint(parseInt(hex, 16))
     )
+    .replace(/&#span(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
     .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
 }
 
