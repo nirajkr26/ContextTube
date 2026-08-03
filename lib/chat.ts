@@ -134,7 +134,7 @@ export async function getChatResponseStream(
 
   // 3. Format history for Gemini (excluding the last user query to supply it with system context)
   const chatHistory = history.slice(0, -1).map((msg) => ({
-    role: msg.role === "assistant" ? "model" as const : "user" as const,
+    role: msg.role === "assistant" ? ("model" as const) : ("user" as const),
     parts: [{ text: msg.content }],
   }))
 
@@ -147,11 +147,12 @@ ${contextText || "No matching transcript segments found."}
 
 Rules:
 1. Always base your answers on the transcript segments provided above.
-2. If you cite something, mention the video offset time (e.g. "at 03:45").
-3. If the transcript segments do not contain the answer, answer as best as you can based on the video context, but state clearly that the transcript doesn't explicitly mention it.
-4. Keep answers friendly, formatted with markdown, and concise.`
+2. For EVERY claim or piece of information you cite, you MUST include its citation formatted EXACTLY as "[Offset: Xs]" (where X is the start offset in seconds, e.g., "[Offset: 416s]"). Place this citation at the start of your bullet point or claim, e.g. "* [Offset: 416s] One interviewee emphasizes...". Do NOT use raw timestamps like "06:56" or "06:18" or "⏱️ 06:56" in your text.
+3. Keep your response structure clean and readable. Use single-level bullet points rather than deeply nested bullet lists.
+4. If the transcript segments do not contain the answer, answer as best as you can based on the video context, but state clearly that the transcript doesn't explicitly mention it.
+5. Keep answers friendly, professional, formatted with standard markdown, and concise.`
 
-  // 4. Request streaming generation from Gemini (using gemini-2.5-flash)
+  // 4. Request streaming generation from Gemini (using gemini-3.6-flash)
   return ai.models.generateContentStream({
     model: "gemini-3.6-flash",
     contents: [

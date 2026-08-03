@@ -12,6 +12,12 @@ const fontMono = Geist_Mono({
   variable: "--font-mono",
 })
 
+export const metadata = {
+  title: "ContextTube - Query YouTube Videos with AI",
+  description:
+    "Query YouTube transcripts and seek videos with timestamped citations using AI.",
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{

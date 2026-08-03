@@ -41,7 +41,9 @@ export async function getEmbedding(text: string): Promise<number[]> {
             waitMs = Math.ceil((seconds + 0.5) * 1000)
           }
         }
-        console.warn(`[getEmbedding] Rate limited. Retrying in ${waitMs}ms (attempt ${attempt + 1}/${retries})...`)
+        console.warn(
+          `[getEmbedding] Rate limited. Retrying in ${waitMs}ms (attempt ${attempt + 1}/${retries})...`
+        )
         await new Promise((resolve) => setTimeout(resolve, waitMs))
       } else {
         throw err
@@ -66,8 +68,8 @@ export async function getBatchEmbeddings(texts: string[]): Promise<number[][]> {
       try {
         response = await ai.models.embedContent({
           model: "gemini-embedding-2",
-          contents: batch.map(text => ({ parts: [{ text }] })),
-          config: { outputDimensionality: 768 }
+          contents: batch.map((text) => ({ parts: [{ text }] })),
+          config: { outputDimensionality: 768 },
         })
         break
       } catch (err: any) {
@@ -90,15 +92,21 @@ export async function getBatchEmbeddings(texts: string[]): Promise<number[][]> {
               throw err
             }
           }
-          console.warn(`Gemini API 429 Rate Limit hit. Retrying batch in ${waitMs}ms (attempt ${attempt + 1}/${retries})...`)
-          await new Promise(resolve => setTimeout(resolve, waitMs))
+          console.warn(
+            `Gemini API 429 Rate Limit hit. Retrying batch in ${waitMs}ms (attempt ${attempt + 1}/${retries})...`
+          )
+          await new Promise((resolve) => setTimeout(resolve, waitMs))
         } else {
           throw err
         }
       }
     }
 
-    if (!response || !response.embeddings || response.embeddings.length !== batch.length) {
+    if (
+      !response ||
+      !response.embeddings ||
+      response.embeddings.length !== batch.length
+    ) {
       throw new Error("Failed to generate batch embeddings from Gemini API")
     }
 
