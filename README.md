@@ -10,7 +10,7 @@ ContextTube is a premium, state-of-the-art AI-powered platform for video ingesti
 * **Custom YouTube Transcription**: Captures transcripts directly from YouTube. Includes native multi-language support that auto-translates Hindi (and other non-English languages) to English via YouTube's internal `tlang=en` parameter.
 * **Rate-Limit Aware Embeddings**: Generates dense 768-dimensional embeddings using `gemini-embedding-2`. 
 * **Stateful Queueing**: Utilizes Upstash Workflows to orchestrate background processing in batches of 50 chunks, introducing controlled 30-second sleeps between batches to strictly comply with the free-tier 100 RPM Gemini quota.
-* **Database Persistance**: Embeddings and transcripts are stored in PostgreSQL using Neon HTTP and Drizzle ORM.
+* **Database Persistence**: Embeddings and transcripts are stored in PostgreSQL using Neon HTTP and Drizzle ORM.
 
 ### 2. Conversational RAG Engine
 * **Vector Similarity Search**: Uses PostgreSQL's `pgvector` extension to calculate Cosine Distance (`<=>`) between user query embeddings and video transcript chunks.
@@ -18,6 +18,14 @@ ContextTube is a premium, state-of-the-art AI-powered platform for video ingesti
 * **Resilient Streaming Response**: Delivers live streaming text via Server-Sent Events (SSE) and Next.js `ReadableStream` utilizing the `gemini-3.6-flash` model.
 * **Disconnect Guards**: Employs an `isSaved` guard and a stream cancellation interceptor (`cancel()`) to ensure the assistant's response is reliably written to the database even if the user aborts or closes their tab mid-stream.
 * **Rolling Message Window**: Caps prompt histories to the last 20 messages, preventing unbounded input size, saving tokens, and minimizing latency.
+
+### 3. Refactored & Optimized Frontend Architecture
+* **Decoupled Business Logic**: Moved all application logic out of the view layer into custom React Hooks:
+  * [`useDashboardVideos`](/home/niraj/projects/contextTube/hooks/use-dashboard-videos.ts): Handles listing, filtering, submitting new video URLs, and polling status in the dashboard.
+  * [`useVideoChat`](/home/niraj/projects/contextTube/hooks/use-video-chat.ts): Manages live streaming chat sessions, message dispatching, state restoration, and YouTube player seeks.
+* **Axios Standardization**: Replaced all raw `fetch` network requests with Axios for robust error handling, progress monitoring, and cleaner API interactions.
+* **Optimized Input Debouncing**: Added custom debounced search in the dashboard to minimize UI re-renders.
+* **Dynamic Page Metadata**: Integrated dynamic head titles based on the active page (e.g. video title in the chat page, custom dashboard title) via Next.js App Router metadata conventions.
 
 ---
 
@@ -127,6 +135,8 @@ QSTASH_TOKEN=your_qstash_token
 
 ## 📁 Repository Structure
 
+* `hooks/use-dashboard-videos.ts`: Extracted dashboard hook managing video lists, deletion, and debounced filters.
+* `hooks/use-video-chat.ts`: Custom hook containing state management for chat streams, scroll anchors, and player controllers.
 * `app/api/chat/route.ts`: Contains the GET (session lists and message histories) and POST (live RAG chat streaming) endpoints.
 * `app/api/process-video/route.ts`: Handles incoming video URL submissions and triggers the background processing queue.
 * `app/api/workflow/route.ts`: Core Upstash workflow engine handling downloading transcripts, batching, rate-limiting delays, and database indexing.
@@ -150,4 +160,3 @@ Start the local development server:
 ```bash
 bun run dev
 ```
-
