@@ -184,7 +184,7 @@ export async function POST(request: Request) {
     if (shouldTrigger) {
       // 5. Trigger asynchronous transcript/vectorization workflow via Upstash Workflow client
       let baseUrl =
-        process.env.NEXT_PUBLIC_APP_URL || process.env.UPSTASH_WORKFLOW_URL
+       process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.UPSTASH_WORKFLOW_URL
       if (!baseUrl) {
         let host = request.headers.get("host") || "127.0.0.1:3000"
         if (host.includes("localhost") || host.includes("::1")) {
