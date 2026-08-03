@@ -4,6 +4,8 @@ import {
 } from "youtube-transcript"
 import axios from "axios"
 
+const YOUTUBE_COOKIE = process.env.YOUTUBE_COOKIE || ""
+
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36,gzip(gfe)"
 const INNERTUBE_API_URL =
@@ -25,6 +27,18 @@ interface CaptionTrack {
   languageCode: string
   kind?: string
   isTranslatable?: boolean
+}
+
+// Utility to build standard request headers including optional YouTube authentication cookies
+function getHeaders(userAgent: string, extraHeaders?: Record<string, string>) {
+  const headers: Record<string, string> = {
+    "User-Agent": userAgent,
+    ...extraHeaders,
+  }
+  if (YOUTUBE_COOKIE) {
+    headers["Cookie"] = YOUTUBE_COOKIE
+  }
+  return headers
 }
 
 // Helper to wrap axios GET requests with retry backoff for 429s
@@ -94,10 +108,9 @@ export async function fetchEnglishTranscript(videoId: string) {
         videoId: videoId,
       },
       {
-        headers: {
+        headers: getHeaders(INNERTUBE_USER_AGENT, {
           "Content-Type": "application/json",
-          "User-Agent": INNERTUBE_USER_AGENT,
-        },
+        }),
       }
     )
     captionTracks =
@@ -112,9 +125,7 @@ export async function fetchEnglishTranscript(videoId: string) {
       const { data: html } = await axiosGetWithRetry(
         `https://www.youtube.com/watch?v=${videoId}`,
         {
-          headers: {
-            "User-Agent": USER_AGENT,
-          },
+          headers: getHeaders(USER_AGENT),
         }
       )
       if (html.includes('class="g-recaptcha"')) {
@@ -180,9 +191,7 @@ export async function fetchEnglishTranscript(videoId: string) {
 
   // 4. Fetch the transcript XML
   const { data: transcriptBody } = await axiosGetWithRetry(transcriptURL, {
-    headers: {
-      "User-Agent": USER_AGENT,
-    },
+    headers: getHeaders(USER_AGENT),
   })
 
   // 5. Parse the XML (classic and srv3 formats)
@@ -243,7 +252,10 @@ function decodeEntities(text: string): string {
 export async function fetchYoutubeMetadata(videoId: string) {
   try {
     const { data } = await axiosGetWithRetry(
-      `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`
+      `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`,
+      {
+        headers: getHeaders(USER_AGENT),
+      }
     )
     return {
       title: data.title || "Untitled Video",
