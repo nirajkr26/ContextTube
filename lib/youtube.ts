@@ -33,6 +33,8 @@ interface CaptionTrack {
 function getHeaders(userAgent: string, extraHeaders?: Record<string, string>) {
   const headers: Record<string, string> = {
     "User-Agent": userAgent,
+    "Referer": "https://www.youtube.com",
+    "Origin": "https://www.youtube.com",
     ...extraHeaders,
   }
   if (YOUTUBE_COOKIE) {
