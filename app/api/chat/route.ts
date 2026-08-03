@@ -16,13 +16,10 @@ import { eq, and, sql } from "drizzle-orm"
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    let userId = "111710723336307333176"
-    if (process.env.NODE_ENV === "production" || session) {
-      if (!session?.user || !(session.user as any).id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-      }
-      userId = (session.user as any).id
+    if (!session?.user || !(session.user as any).id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const userId = (session.user as any).id
 
     const { searchParams } = new URL(request.url)
     const chatId = searchParams.get("chatId")
@@ -31,15 +28,17 @@ export async function GET(request: Request) {
     // 1. Fetch message history for a specific chat
     if (chatId) {
       const isValid = await verifyChatSession(chatId, userId, videoId || "")
-      
+
       // Fallback verification if videoId is not supplied in query param
-      const hasChat = isValid || (
-        await db
-          .select()
-          .from(chats)
-          .where(and(eq(chats.id, chatId), eq(chats.userId, userId)))
-          .limit(1)
-      ).length > 0
+      const hasChat =
+        isValid ||
+        (
+          await db
+            .select()
+            .from(chats)
+            .where(and(eq(chats.id, chatId), eq(chats.userId, userId)))
+            .limit(1)
+        ).length > 0
 
       if (!hasChat) {
         return NextResponse.json({ error: "Chat not found" }, { status: 404 })
@@ -81,13 +80,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    let userId = "111710723336307333176"
-    if (process.env.NODE_ENV === "production" || session) {
-      if (!session?.user || !(session.user as any).id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-      }
-      userId = (session.user as any).id
+    if (!session?.user || !(session.user as any).id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+    const userId = (session.user as any).id
 
     const { videoId, message, chatId: clientChatId } = await request.json()
     if (!videoId || !message) {
@@ -116,7 +112,10 @@ export async function POST(request: Request) {
     } else {
       const isValid = await verifyChatSession(chatId, userId, videoId)
       if (!isValid) {
-        return NextResponse.json({ error: "Chat session invalid" }, { status: 404 })
+        return NextResponse.json(
+          { error: "Chat session invalid" },
+          { status: 404 }
+        )
       }
     }
 
@@ -172,7 +171,7 @@ export async function POST(request: Request) {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
+        Connection: "keep-alive",
         "X-Chat-Id": chatId,
       },
     })
@@ -185,3 +184,45 @@ export async function POST(request: Request) {
   }
 }
 
+// DELETE handler: Clear chat session history for a video
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user || !(session.user as any).id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    const userId = (session.user as any).id
+
+    const { searchParams } = new URL(request.url)
+    const videoId = searchParams.get("videoId")
+    const chatId = searchParams.get("chatId")
+
+    if (!videoId && !chatId) {
+      return NextResponse.json(
+        { error: "Must provide either videoId or chatId" },
+        { status: 400 }
+      )
+    }
+
+    if (chatId) {
+      await db
+        .delete(chats)
+        .where(and(eq(chats.id, chatId), eq(chats.userId, userId)))
+    } else if (videoId) {
+      await db
+        .delete(chats)
+        .where(and(eq(chats.videoId, videoId), eq(chats.userId, userId)))
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Chat cleared successfully",
+    })
+  } catch (error: any) {
+    console.error("Error in DELETE /api/chat:", error)
+    return NextResponse.json(
+      { error: error.message || "Failed to clear chat history" },
+      { status: 500 }
+    )
+  }
+}
