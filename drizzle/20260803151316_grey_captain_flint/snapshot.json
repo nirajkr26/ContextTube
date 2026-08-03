@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "7cffc38b-2223-489b-8197-d9b9dfe0fa82",
+  "id": "4b2a3709-eea5-40d5-bf7c-0a23746a1262",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -415,6 +415,19 @@
       "generated": null,
       "identity": null,
       "name": "status",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "videos"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "error_message",
       "entityType": "columns",
       "schema": "public",
       "table": "videos"

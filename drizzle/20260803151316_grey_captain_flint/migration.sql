@@ -44,6 +44,7 @@ CREATE TABLE "videos" (
 	"channel_name" text,
 	"duration_seconds" integer,
 	"status" varchar DEFAULT 'processing' NOT NULL,
+	"error_message" text,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
