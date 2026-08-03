@@ -1,7 +1,6 @@
 import {
   YoutubeTranscriptVideoUnavailableError,
   YoutubeTranscriptDisabledError,
-  YoutubeTranscriptNotAvailableError,
 } from "youtube-transcript"
 import axios from "axios"
 
@@ -28,12 +27,67 @@ interface CaptionTrack {
   isTranslatable?: boolean
 }
 
+// Helper to wrap axios GET requests with retry backoff for 429s
+async function axiosGetWithRetry(
+  url: string,
+  config?: any,
+  retries = 3,
+  delay = 1000
+): Promise<any> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await axios.get(url, config)
+    } catch (error: any) {
+      const isRateLimit =
+        error?.response?.status === 429 || error?.status === 429
+      if (isRateLimit && attempt < retries - 1) {
+        const waitMs = delay * Math.pow(2, attempt)
+        console.warn(
+          `[YouTube GET] 429 Rate limited at ${url}. Retrying in ${waitMs}ms (attempt ${attempt + 1}/${retries})...`
+        )
+        await new Promise((res) => setTimeout(res, waitMs))
+      } else {
+        throw error
+      }
+    }
+  }
+  throw new Error("Failed GET request after retries")
+}
+
+// Helper to wrap axios POST requests with retry backoff for 429s
+async function axiosPostWithRetry(
+  url: string,
+  body?: any,
+  config?: any,
+  retries = 3,
+  delay = 1000
+): Promise<any> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await axios.post(url, body, config)
+    } catch (error: any) {
+      const isRateLimit =
+        error?.response?.status === 429 || error?.status === 429
+      if (isRateLimit && attempt < retries - 1) {
+        const waitMs = delay * Math.pow(2, attempt)
+        console.warn(
+          `[YouTube POST] 429 Rate limited at ${url}. Retrying in ${waitMs}ms (attempt ${attempt + 1}/${retries})...`
+        )
+        await new Promise((res) => setTimeout(res, waitMs))
+      } else {
+        throw error
+      }
+    }
+  }
+  throw new Error("Failed POST request after retries")
+}
+
 export async function fetchEnglishTranscript(videoId: string) {
   let captionTracks: CaptionTrack[] | undefined
 
   // 1. Try InnerTube API first
   try {
-    const { data } = await axios.post(
+    const { data } = await axiosPostWithRetry(
       INNERTUBE_API_URL,
       {
         context: INNERTUBE_CONTEXT,
@@ -55,7 +109,7 @@ export async function fetchEnglishTranscript(videoId: string) {
   // 2. Fall back to web page scraping if InnerTube failed
   if (!captionTracks || captionTracks.length === 0) {
     try {
-      const { data: html } = await axios.get(
+      const { data: html } = await axiosGetWithRetry(
         `https://www.youtube.com/watch?v=${videoId}`,
         {
           headers: {
@@ -125,7 +179,7 @@ export async function fetchEnglishTranscript(videoId: string) {
   }
 
   // 4. Fetch the transcript XML
-  const { data: transcriptBody } = await axios.get(transcriptURL, {
+  const { data: transcriptBody } = await axiosGetWithRetry(transcriptURL, {
     headers: {
       "User-Agent": USER_AGENT,
     },
@@ -188,7 +242,7 @@ function decodeEntities(text: string): string {
 
 export async function fetchYoutubeMetadata(videoId: string) {
   try {
-    const { data } = await axios.get(
+    const { data } = await axiosGetWithRetry(
       `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`
     )
     return {
