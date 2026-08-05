@@ -22,10 +22,10 @@ ENV DATABASE_URL="postgres://dummy:dummy@localhost:5432/dummy"
 ENV GEMINI_API_KEY="dummy-gemini-key"
 ENV QSTASH_TOKEN="dummy-qstash-token"
 
-# Compile and build Next.js application
-RUN bun run build
+# Build Next.js with cache mounting to speed up rebuilds
+RUN --mount=type=cache,target=/app/.next/cache bun run build
 
-# Stage 3: Production runner stage
+# Stage 3: Production runner stage (ultra-lightweight)
 FROM oven/bun:alpine AS runner
 WORKDIR /app
 
@@ -33,13 +33,20 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Copy package and configuration files
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/next.config.ts ./next.config.ts
+# Set permissions for pre-rendering cache and static asset storage
+RUN mkdir -p .next && chown -R bun:bun .next
+
+# Switch to the pre-configured unprivileged non-root user
+USER bun
+
+# Copy public static assets
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
+
+# Copy the standalone build output (contains minimal server code + server dependencies)
+COPY --from=builder --chown=bun:bun /app/.next/standalone ./
+COPY --from=builder --chown=bun:bun /app/.next/static ./.next/static
 
 EXPOSE 3000
 
-CMD ["bun", "run", "start"]
+# Start server using Next.js standalone entry point
+CMD ["bun", "run", "server.js"]
